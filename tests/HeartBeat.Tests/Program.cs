@@ -57,6 +57,19 @@ Test("Device switch clears prior session and out-of-order samples cannot replace
     h.Clear(); Check.Equal(0, h.Snapshot(start.AddSeconds(3)).Count); Check.Equal<int?>(null, h.CurrentBpm(start.AddSeconds(3)));
 });
 
+Test("Statistics use only valid samples within the current five-minute window", () => {
+    var now = start.AddMinutes(5);
+    var stats = HeartRateStatistics.Calculate([
+        new(start, 250), new(start.AddSeconds(1), 70), new(start.AddSeconds(2), null),
+        new(start.AddSeconds(3), 90), new(now, 110), new(now.AddSeconds(1), 200), new(now, 0)], now);
+    Check.Equal<int?>(90, stats.Average); Check.Equal<int?>(70, stats.Minimum); Check.Equal<int?>(110, stats.Maximum); Check.Equal(3, stats.Count);
+});
+Test("Statistics round half BPM upward and show unavailable for empty windows", () => {
+    var stats = HeartRateStatistics.Calculate([new(start, 70), new(start.AddSeconds(1), 71)], start.AddSeconds(1));
+    Check.Equal<int?>(71, stats.Average);
+    var empty = HeartRateStatistics.Calculate([new(start, 90), new(start.AddMinutes(6), null)], start.AddMinutes(6));
+    Check.Equal<int?>(null, empty.Average); Check.Equal<int?>(null, empty.Minimum); Check.Equal<int?>(null, empty.Maximum);
+});
 tests.AddRange(ControllerTests.All());
 var failed = 0;
 foreach (var test in tests)

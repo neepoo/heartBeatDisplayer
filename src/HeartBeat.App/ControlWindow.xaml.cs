@@ -21,6 +21,7 @@ public partial class ControlWindow : Window
     {
         _refreshing = true;
         LockCheck.IsChecked = _app.Settings.Locked;
+        AnimationCheck.IsChecked = _app.Settings.AnimateHeart;
         OpacitySlider.Value = _app.Settings.BackgroundOpacity * 100;
         OpacityLabel.Text = $"{OpacitySlider.Value:0}%";
         ConnectionLabel.Text = (_app.IsDemo ? "演示模式 · " : "") + _app.CurrentStatus.Message;
@@ -70,6 +71,7 @@ public partial class ControlWindow : Window
     }
     private void VisibilityClick(object sender, RoutedEventArgs e) => _app.ToggleVisibility();
     private void LockChanged(object sender, RoutedEventArgs e) { if (!_refreshing && IsLoaded) _app.SetLocked(LockCheck.IsChecked == true); }
+    private void AnimationChanged(object sender, RoutedEventArgs e) { if (!_refreshing && IsLoaded) _app.SetHeartAnimation(AnimationCheck.IsChecked == true); }
     private void OpacityChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
     { if (!_refreshing && IsLoaded) _app.SetOpacity(e.NewValue / 100); }
     protected override void OnClosing(CancelEventArgs e)

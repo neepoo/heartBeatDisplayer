@@ -18,6 +18,7 @@ public sealed class NativeOverlay : IDisposable
     public string? HotkeyWarning { get; private set; }
     public event Action? ToggleVisibility;
     public event Action? ToggleLock;
+    public event Action? BoundsEdited;
     public NativeOverlay(OverlayWindow window)
     {
         _window = window;
@@ -42,6 +43,22 @@ public sealed class NativeOverlay : IDisposable
     }
     private IntPtr WindowMessage(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
+        if (msg == 0x0084 && !_window.IsLocked && GetWindowRect(hwnd, out var rect))
+        {
+            // WM_NCHITTEST uses signed screen pixels (including negative monitor origins).
+            var x = (short)(lParam.ToInt64() & 0xffff);
+            var y = (short)((lParam.ToInt64() >> 16) & 0xffff);
+            var dpi = VisualTreeHelper.GetDpi(_window);
+            var edgeX = 8 * dpi.DpiScaleX; var edgeY = 8 * dpi.DpiScaleY;
+            if (x >= rect.Left && x < rect.Right && y >= rect.Top && y < rect.Bottom)
+            {
+                var left = x < rect.Left + edgeX; var right = x >= rect.Right - edgeX;
+                var top = y < rect.Top + edgeY; var bottom = y >= rect.Bottom - edgeY;
+                var hit = top ? (left ? 13 : right ? 14 : 12) : bottom ? (left ? 16 : right ? 17 : 15) : left ? 10 : right ? 11 : 0;
+                if (hit != 0) { handled = true; return new IntPtr(hit); }
+            }
+        }
+        if (msg == 0x0232) { ClampToScreen(); BoundsEdited?.Invoke(); }
         if (msg == 0x0312)
         {
             if (wParam.ToInt32() == 1) ToggleVisibility?.Invoke();
@@ -66,6 +83,8 @@ public sealed class NativeOverlay : IDisposable
         var areas = WorkAreas();
         var target = areas.OrderByDescending(a => IntersectionArea(a.Area, bounds)).First();
         if (IntersectionArea(target.Area, bounds) == 0) { ResetPosition(); return; }
+        _window.Width = Math.Min(_window.Width, Math.Max(_window.MinWidth, target.Area.Width));
+        _window.Height = Math.Min(_window.Height, Math.Max(_window.MinHeight, target.Area.Height));
         _window.Left = Math.Clamp(_window.Left, target.Area.Left, Math.Max(target.Area.Left, target.Area.Right - _window.Width));
         _window.Top = Math.Clamp(_window.Top, target.Area.Top, Math.Max(target.Area.Top, target.Area.Bottom - _window.Height));
     }
@@ -88,4 +107,6 @@ public sealed class NativeOverlay : IDisposable
     [DllImport("user32.dll")] private static extern bool SetWindowPos(IntPtr hwnd, IntPtr after, int x, int y, int cx, int cy, uint flags);
     [DllImport("user32.dll", SetLastError = true)] private static extern bool RegisterHotKey(IntPtr hwnd, int id, uint modifiers, uint key);
     [DllImport("user32.dll")] private static extern bool UnregisterHotKey(IntPtr hwnd, int id);
+    [DllImport("user32.dll")] private static extern bool GetWindowRect(IntPtr hwnd, out WindowRect rect);
+    [StructLayout(LayoutKind.Sequential)] private struct WindowRect { public int Left, Top, Right, Bottom; }
 }

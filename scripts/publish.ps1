@@ -3,7 +3,11 @@ $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $env:DOTNET_CLI_HOME = Join-Path $projectRoot '.cli'
 $env:DOTNET_CLI_TELEMETRY_OPTOUT = '1'
-$output = Join-Path $projectRoot 'artifacts\HeartBeat-win-x64'
+[xml]$project = Get-Content -LiteralPath (Join-Path $projectRoot 'src\HeartBeat.App\HeartBeat.App.csproj')
+$version = [string]$project.Project.PropertyGroup.Version
+if ($version -notmatch '^\d+\.\d+\.\d+(?:[-+][\w.-]+)?$') { throw 'Invalid application version.' }
+$packageName = "HeartBeat-$version-win-x64"
+$output = Join-Path $projectRoot "artifacts\$packageName"
 Push-Location $projectRoot
 try {
     if (-not $SkipTests) {
@@ -14,7 +18,10 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Publish failed.' }
     Copy-Item -LiteralPath (Join-Path $projectRoot 'README.md') -Destination (Join-Path $output '使用说明.md')
     Copy-Item -LiteralPath (Join-Path $projectRoot 'scripts\演示模式.cmd') -Destination $output
-    Compress-Archive -Path (Join-Path $output '*') -DestinationPath (Join-Path $projectRoot 'artifacts\HeartBeat-win-x64.zip') -Force
+    $zipPath = Join-Path $projectRoot "artifacts\$packageName.zip"
+    Compress-Archive -Path (Join-Path $output '*') -DestinationPath $zipPath -Force
+    $hashValue = (Get-FileHash -LiteralPath $zipPath -Algorithm SHA256).Hash
+    Set-Content -LiteralPath "$zipPath.sha256" -Value "$hashValue  $packageName.zip"
     Write-Output "Published: $output"
 }
 finally { Pop-Location }

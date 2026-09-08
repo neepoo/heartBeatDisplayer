@@ -35,3 +35,18 @@ See verification.md for exact evidence and remaining physical acceptance.
 Hardware verification: sandbox BLE probe returned no adapter. An elevated
 Get-PnpDevice -Class Bluetooth -PresentOnly query likewise found no Bluetooth
 devices. Real 255/game/mixed-DPI acceptance remains unverified on this machine.
+
+## v1.1.0 user-requested follow-up
+
+The user reported missing window resizing and requested more heart-rate elements.
+The fixed-size v1.0 layout is superseded by an unlocked resizable card with
+persisted dimensions (default 320×240, minimum 280×216 DIP), responsive typography,
+BPM-derived heart animation with a setting, and five-minute average/min/max.
+The existing BLE protocol and reconnection behavior remain as implemented.
+
+The user also requested repository creation and a GitHub push after each completed
+iteration. Git was initialized in place; remote is private
+https://github.com/neepoo/heartBeatDisplayer, branch main. Repo-local author is
+neepoo <neepoowzk@gmail.com>. Repository-local HTTPS uses gh's authenticated
+credential helper because the local SSH signing agent could not sign. See
+AGENTS.md for the ongoing completion/commit/push convention.

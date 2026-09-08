@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Interop;
+using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using HeartBeat.App;
@@ -33,6 +34,8 @@ internal static class Program
             try
             {
                 var overlay = app.Windows.OfType<OverlayWindow>().Single();
+                var deadline = DateTime.UtcNow.AddSeconds(5);
+                while (!int.TryParse(overlay.DisplayedBpm, out _) && DateTime.UtcNow < deadline) await Task.Delay(50);
                 Verify("Actual app receives simulated heart rate", app.IsDemo && int.TryParse(overlay.DisplayedBpm, out var bpm) && bpm > 0);
                 var handle = new WindowInteropHelper(overlay).Handle;
                 app.SetLocked(true);
@@ -40,6 +43,16 @@ internal static class Program
                 Verify("Overlay has nonactivating window style", (GetWindowLongPtr(handle, -20).ToInt64() & 0x08000000) != 0);
                 app.SetLocked(false);
                 Verify("Unlock restores drag interaction", (GetWindowLongPtr(handle, -20).ToInt64() & 0x20) == 0 && !overlay.IsLocked);
+                Verify("Unlocked corner starts native window resizing", HitTestCorner(handle) == 17);
+                app.SetLocked(true);
+                var lockedHit = HitTestCorner(handle);
+                Verify("Locked window has no resize hit target", lockedHit < 10 || lockedHit > 17);
+                app.SetLocked(false);
+                overlay.Width = 420; overlay.Height = 280;
+                SendMessage(handle, 0x0232, IntPtr.Zero, IntPtr.Zero);
+                var persistedBoundsPath = Path.Combine(directory, "settings.json");
+                using (var savedBounds = JsonDocument.Parse(File.ReadAllText(persistedBoundsPath)))
+                    Verify("Resize completion persists both dimensions", savedBounds.RootElement.TryGetProperty("Width", out var width) && width.GetDouble() == 420 && savedBounds.RootElement.TryGetProperty("Height", out var height) && height.GetDouble() == 280);
                 app.ToggleVisibility(); Verify("Overlay hides without ending process", !overlay.IsVisible);
                 var foreground = GetForegroundWindow();
                 app.ToggleVisibility();
@@ -57,10 +70,22 @@ internal static class Program
 
                 // Deterministic fixture for visual inspection of the entire five-minute chart.
                 var now = DateTimeOffset.UtcNow;
+                overlay.Update(90, new HeartRateSample[] { new(now.AddSeconds(-2), 70), new(now.AddSeconds(-1), 90), new(now, 110) }, now, "模拟数据");
+                Verify("Overlay shows correct average/minimum/maximum", (overlay.FindName("AverageLabel") as TextBlock)?.Text == "90" && (overlay.FindName("MinimumLabel") as TextBlock)?.Text == "70" && (overlay.FindName("MaximumLabel") as TextBlock)?.Text == "110");
+                Verify("Fresh BPM animates the heart indicator", (overlay.FindName("PulseScale") as ScaleTransform)?.HasAnimatedProperties == true);
+                app.SetHeartAnimation(false);
+                Verify("Animation preference stops motion without hiding BPM", (overlay.FindName("PulseScale") as ScaleTransform)?.HasAnimatedProperties == false && int.TryParse(overlay.DisplayedBpm, out _));
+                app.SetHeartAnimation(true);
+                overlay.Update(null, Array.Empty<HeartRateSample>(), now, "等待数据");
+                Verify("Unavailable BPM stops the heart animation", (overlay.FindName("PulseScale") as ScaleTransform)?.HasAnimatedProperties == false);
                 var points = Enumerable.Range(0, 300).Select(i => new HeartRateSample(now.AddSeconds(i - 299),
                     i is > 125 and < 145 ? null : (int)(84 + 12 * Math.Sin(i / 27d) + 4 * Math.Sin(i / 6d)))).ToArray();
                 overlay.SetAppearance(false, 0.8, true); overlay.Update(85, points, now, "模拟数据"); overlay.UpdateLayout();
                 Capture(overlay, Path.Combine(directory, "overlay-preview.png"));
+                overlay.Width = 280; overlay.Height = 216; overlay.UpdateLayout();
+                Capture(overlay, Path.Combine(directory, "overlay-compact-preview.png"));
+                Verify("Compact layout retains readable statistics", (overlay.FindName("AverageLabel") as TextBlock)?.ActualHeight > 0 && (overlay.FindName("Chart") as HeartRateChart)?.ActualHeight >= 40);
+                overlay.Width = 420; overlay.Height = 280;
                 Verify("Preview includes a rendered chart", new FileInfo(Path.Combine(directory, "overlay-preview.png")).Length > 1000);
                 app.SetOpacity(0.65); app.SetLocked(true);
                 var saved = new SettingsStore(directory).Load();
@@ -98,6 +123,12 @@ internal static class Program
         Verify("Corrupt settings recover without crashing", recovered.BackgroundOpacity == 0.8 && store.LastError is not null);
         File.WriteAllText(Path.Combine(directory, "settings.json"), "{\"BackgroundOpacity\":8}");
         Verify("Out-of-range persisted opacity is clamped", store.Load().BackgroundOpacity == 0.95);
+        File.WriteAllText(Path.Combine(directory, "settings.json"), "{\"Width\":1,\"Height\":99999}");
+        var bounds = store.Load();
+        Verify("Invalid saved dimensions are limited to usable sizes", bounds.Width == 280 && bounds.Height == 720);
+        File.WriteAllText(Path.Combine(directory, "settings.json"), "{\"Locked\":true,\"BackgroundOpacity\":0.65}");
+        var legacy = store.Load();
+        Verify("Version 1 settings migrate to a readable default size", legacy.Width == 320 && legacy.Height == 240 && legacy.Locked && legacy.BackgroundOpacity == 0.65 && legacy.AnimateHeart);
     }
     private static void Verify(string name, bool condition) { Results.Add((condition ? "PASS " : "FAIL ") + name); if (!condition) _failed++; }
     private static void Capture(Window window, string path)
@@ -109,4 +140,13 @@ internal static class Program
     }
     [DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW")] private static extern IntPtr GetWindowLongPtr(IntPtr hwnd, int index);
     [DllImport("user32.dll")] private static extern IntPtr GetForegroundWindow();
+    [DllImport("user32.dll")] private static extern IntPtr SendMessage(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam);
+    [DllImport("user32.dll")] private static extern bool GetWindowRect(IntPtr hwnd, out WindowRect rect);
+    [StructLayout(LayoutKind.Sequential)] private struct WindowRect { public int Left, Top, Right, Bottom; }
+    private static int HitTestCorner(IntPtr handle)
+    {
+        GetWindowRect(handle, out var rect);
+        var coordinates = (long)(ushort)(rect.Right - 5) | ((long)(ushort)(rect.Bottom - 5) << 16);
+        return SendMessage(handle, 0x0084, IntPtr.Zero, new IntPtr(coordinates)).ToInt32();
+    }
 }

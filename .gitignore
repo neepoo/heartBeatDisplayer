@@ -5,3 +5,8 @@
 artifacts/
 .vs/
 *.user
+.env
+.env.*
+!.env.example
+*.pfx
+*.pem

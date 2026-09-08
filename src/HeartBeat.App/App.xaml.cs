@@ -48,12 +48,13 @@ public partial class App : Application
         }
         _store = new(directory); Settings = _store.Load();
         IsDemo = args.Contains("--demo");
-        _overlay = new OverlayWindow(); MainWindow = _overlay;
-        _overlay.SetAppearance(Settings.Locked, Settings.BackgroundOpacity, IsDemo);
+        _overlay = new OverlayWindow { Width = Settings.Width, Height = Settings.Height }; MainWindow = _overlay;
+        _overlay.SetAppearance(Settings.Locked, Settings.BackgroundOpacity, IsDemo, Settings.AnimateHeart);
         _native = new NativeOverlay(_overlay);
         if (Settings.Left is double left && Settings.Top is double top) { _overlay.Left = left; _overlay.Top = top; _native.ClampToScreen(); }
         else _native.ResetPosition();
         _overlay.PositionEdited += () => { _native.ClampToScreen(); SaveSettings(); };
+        _native.BoundsEdited += SaveSettings;
         _native.ToggleVisibility += ToggleVisibility;
         _native.ToggleLock += () => SetLocked(!Settings.Locked);
         _tray = new TrayController(ShowSettings, ToggleVisibility, () => SetLocked(!Settings.Locked), ResetPosition, () => _ = ExitAsync());
@@ -160,10 +161,11 @@ public partial class App : Application
     }
     public void SetLocked(bool locked) { if (_exiting) return; Settings.Locked = locked; ApplyAppearance(); SaveSettings(); }
     public void SetOpacity(double opacity) { if (_exiting) return; Settings.BackgroundOpacity = Math.Clamp(opacity, 0.4, 0.95); ApplyAppearance(); SaveSettings(); }
+    public void SetHeartAnimation(bool enabled) { if (_exiting) return; Settings.AnimateHeart = enabled; ApplyAppearance(); SaveSettings(); }
     public void ResetPosition() { if (_exiting) return; _native.ResetPosition(); SaveSettings(); }
     private void ApplyAppearance()
     {
-        _overlay.SetAppearance(Settings.Locked, Settings.BackgroundOpacity, IsDemo);
+        _overlay.SetAppearance(Settings.Locked, Settings.BackgroundOpacity, IsDemo, Settings.AnimateHeart);
         _native.Apply(Settings.Locked); _controls?.Refresh(); Render();
     }
     private void Render()
@@ -185,6 +187,7 @@ public partial class App : Application
     private void SaveSettings()
     {
         Settings.Left = _overlay.Left; Settings.Top = _overlay.Top;
+        Settings.Width = _overlay.Width; Settings.Height = _overlay.Height;
         _store.Save(Settings);
         if (_store.LastError is not null) _controls?.ShowMessage(_store.LastError);
     }

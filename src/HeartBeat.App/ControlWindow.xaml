@@ -25,6 +25,8 @@
       <Border Background="#2C3546" Height="1" Margin="0,17,0,17"/>
       <Grid><TextBlock Text="悬浮窗" FontWeight="SemiBold"/><Button Content="显示 / 隐藏" Click="VisibilityClick" HorizontalAlignment="Right" Padding="10,5" FontSize="11"/></Grid>
       <CheckBox x:Name="LockCheck" Content="锁定位置并开启鼠标穿透" Foreground="#CFD7E5" Margin="0,12,0,12" Checked="LockChanged" Unchecked="LockChanged"/>
+      <TextBlock Text="解锁后拖动窗口边缘或右下角缩放，大小会自动保存。" FontSize="11" Foreground="#8290A5" TextWrapping="Wrap" Margin="0,0,0,10"/>
+      <CheckBox x:Name="AnimationCheck" Content="心跳动效（节奏按 BPM 推算）" Foreground="#CFD7E5" Margin="0,0,0,12" Checked="AnimationChanged" Unchecked="AnimationChanged"/>
       <Grid><TextBlock Text="背景不透明度" Foreground="#A5B1C3"/><TextBlock x:Name="OpacityLabel" Text="80%" HorizontalAlignment="Right" Foreground="#A5B1C3"/></Grid>
       <Slider x:Name="OpacitySlider" Minimum="40" Maximum="95" Value="80" TickFrequency="5" IsSnapToTickEnabled="True" Margin="0,8,0,10" ValueChanged="OpacityChanged" AutomationProperties.Name="背景不透明度"/>
       <TextBlock Text="Ctrl + Alt + H  显示 / 隐藏      Ctrl + Alt + L  锁定 / 解锁" FontSize="11" Foreground="#8290A5" TextWrapping="Wrap"/>
