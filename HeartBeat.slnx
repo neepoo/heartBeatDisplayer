@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/HeartBeat.Core/HeartBeat.Core.csproj" />
+    <Project Path="src/HeartBeat.App/HeartBeat.App.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/HeartBeat.Tests/HeartBeat.Tests.csproj" />
+    <Project Path="tests/HeartBeat.App.Tests/HeartBeat.App.Tests.csproj" />
+  </Folder>
+</Solution>

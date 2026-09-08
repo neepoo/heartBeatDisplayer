@@ -1,0 +1,21 @@
+<Window x:Class="HeartBeat.App.OverlayWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="clr-namespace:HeartBeat.App"
+  Title="HeartBeat · 心率悬浮窗" Width="280" Height="160" WindowStyle="None" ResizeMode="NoResize" AllowsTransparency="True" Background="Transparent" Topmost="True" ShowInTaskbar="False" ShowActivated="False" UseLayoutRounding="True">
+  <Border x:Name="Card" CornerRadius="13" BorderBrush="#35465268" BorderThickness="1" Padding="14,10,14,12" MouseLeftButtonDown="DragCard">
+    <Border.Background><SolidColorBrush Color="#111722" Opacity="0.8"/></Border.Background>
+    <Grid>
+      <Grid.RowDefinitions><RowDefinition Height="20"/><RowDefinition Height="51"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+      <Grid Grid.Row="0">
+        <StackPanel Orientation="Horizontal"><TextBlock Text="♥" Foreground="#FB7185" FontSize="12" Margin="0,0,6,0"/><TextBlock x:Name="TitleLabel" Text="HEARTBEAT" Foreground="#A7B4C7" FontSize="10" VerticalAlignment="Center"/></StackPanel>
+        <TextBlock x:Name="ModeLabel" Text="可拖动" Foreground="#7F8B9E" FontSize="9" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+      </Grid>
+      <Grid Grid.Row="1">
+        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+          <TextBlock x:Name="BpmLabel" Text="--" Foreground="#F4F7FC" FontFamily="Segoe UI" FontSize="43" FontWeight="SemiBold" LineHeight="46" LineStackingStrategy="BlockLineHeight"/>
+          <TextBlock Text="BPM" Foreground="#8795A9" FontSize="10" Margin="7,25,0,0"/>
+        </StackPanel>
+        <TextBlock x:Name="StatusLabel" Text="未连接" Foreground="#9AA7BA" FontSize="10" HorizontalAlignment="Right" VerticalAlignment="Center" MaxWidth="108" TextTrimming="CharacterEllipsis"/>
+      </Grid>
+      <local:HeartRateChart Grid.Row="2" x:Name="Chart" Margin="0,4,0,0"/>
+    </Grid>
+  </Border>
+</Window>

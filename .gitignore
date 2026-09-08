@@ -1,0 +1,7 @@
+**/bin/
+**/obj/
+.packages/
+.cli/
+artifacts/
+.vs/
+*.user
