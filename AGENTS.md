@@ -29,6 +29,7 @@
 - `publish.ps1` 默认先运行当前平台检查；`-SkipTests` 仅允许前置检查已经通过的同一流程。Win ZIP、Mac .app ZIP、Linux tar.gz 均自带运行时并有 SHA256，Mac/Linux 保留执行权限。
 - 只有推送匹配统一 Version 的 `v<Version>` 标签才发布 Release；四个任务都通过才上传。预览版用后缀版本，保留原稳定版。不移动标签或覆盖已交付附件。
 - 发布任务使用内置 GITHUB_TOKEN 的 contents:write；PR/普通构建只读。当前 Mac 仅 ad hoc 签名，未公证；不擅自加入付费签名流程。
+- Mac 工作负载 26.0 的 AppBundleDir 必须使用项目内、不含 `..` 的相对路径，绝对路径会令签名缓存覆盖 dylib。签名后用 ditto 复制到发布暂存目录，并检查原生库格式。
 - 发布后核对版本、四个包、四份校验文件、预发布状态和对应提交。同步 docs/verification.md 中真实验证证据。
 
 常用命令（在目标操作系统执行）：

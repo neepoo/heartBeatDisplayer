@@ -23,14 +23,26 @@ try {
     $publishArgs = @('publish', $info.ProjectPath, '-c', 'Release', '-r', $info.RuntimeIdentifier,
         '--self-contained', 'true', '-p:DebugType=None', '-p:DebugSymbols=false', '-o', $output)
     if ($IsMacOS) {
-        # The macOS workload's bundle directory is separate from PublishDir (-o).
-        $publishArgs += '-p:CodesignKey=-', '-p:CreatePackage=false', "-p:AppBundleDir=$(Join-Path $output 'HeartBeat.app')"
+        # Workload 26.0 computes codesign stamp paths from AppBundleDir. An absolute
+        # path makes it overwrite dylibs with stamp text. Keep this relative and
+        # inside the project (no '..'), then copy the signed bundle to staging.
+        $macBundleRelative = "bin/Release/$($info.RuntimeIdentifier)/package-$(Split-Path $output -Leaf)/HeartBeat.app"
+        $macBundle = Join-Path (Split-Path $info.ProjectPath -Parent) $macBundleRelative
+        $publishArgs += '-p:CodesignKey=-', '-p:CreatePackage=false', "-p:AppBundleDir=$macBundleRelative"
     }
     dotnet @publishArgs
     if ($LASTEXITCODE -ne 0) { throw 'Publish failed.' }
     if ($IsMacOS) {
+        & /usr/bin/ditto $macBundle (Join-Path $output 'HeartBeat.app')
+        if ($LASTEXITCODE -ne 0) { throw 'macOS bundle staging failed.' }
         $bundles = @(Get-ChildItem -LiteralPath $output -Directory -Filter '*.app')
         if ($bundles.Count -ne 1) { throw "Expected one .app bundle in $output" }
+        $nativeLibraries = @(Get-ChildItem -LiteralPath (Join-Path $bundles[0].FullName 'Contents/MonoBundle') -Filter '*.dylib')
+        if ($nativeLibraries.Count -eq 0) { throw 'macOS bundle is missing native runtime libraries.' }
+        foreach ($library in $nativeLibraries) {
+            $format = & /usr/bin/file -b $library.FullName
+            if ($LASTEXITCODE -ne 0 -or $format -notmatch 'Mach-O') { throw "Invalid native library: $($library.Name): $format" }
+        }
         & /usr/bin/codesign --verify --deep --strict $bundles[0].FullName
         if ($LASTEXITCODE -ne 0) { throw 'macOS ad hoc signature verification failed.' }
         & /usr/bin/ditto -c -k --sequesterRsrc --keepParent $bundles[0].FullName $archivePath
