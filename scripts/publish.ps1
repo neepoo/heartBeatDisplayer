@@ -22,7 +22,10 @@ try {
     if (-not $SkipTests) { & ./scripts/test.ps1 -RuntimeIdentifier $info.RuntimeIdentifier }
     $publishArgs = @('publish', $info.ProjectPath, '-c', 'Release', '-r', $info.RuntimeIdentifier,
         '--self-contained', 'true', '-p:DebugType=None', '-p:DebugSymbols=false', '-o', $output)
-    if ($IsMacOS) { $publishArgs += '-p:CodesignKey=-' }
+    if ($IsMacOS) {
+        # The macOS workload's bundle directory is separate from PublishDir (-o).
+        $publishArgs += '-p:CodesignKey=-', '-p:CreatePackage=false', "-p:AppBundleDir=$(Join-Path $output 'HeartBeat.app')"
+    }
     dotnet @publishArgs
     if ($LASTEXITCODE -ne 0) { throw 'Publish failed.' }
     if ($IsMacOS) {

@@ -54,9 +54,15 @@ public static class SmokeChecks
             Verify("Unavailable BPM stops animation", !overlay.IsHeartAnimating && overlay.DisplayedBpm == "--");
             Verify("Unavailable statistics use placeholders", overlay.AverageLabel.Text == "--" && overlay.MinimumLabel.Text == "--" && overlay.MaximumLabel.Text == "--");
             var points = Enumerable.Range(0, 300).Select(i => new HeartRateSample(now.AddSeconds(i - 299), i is > 125 and < 145 ? null : (int)(84 + 12 * Math.Sin(i / 27d) + 4 * Math.Sin(i / 6d)))).ToArray();
+            var largeReady = await ResizeForCaptureAsync(overlay, 420, 280);
+            Verify("Large preview uses actual 420 x 280 window bounds", largeReady);
+            if (!largeReady) throw new TimeoutException($"Large preview resize did not converge: {overlay.Bounds.Size}");
             overlay.SetAppearance(false, .8, true); overlay.Update(85, points, now, "模拟数据");
             Capture(overlay, Path.Combine(directory, "overlay-preview.png"));
-            overlay.Width = 280; overlay.Height = 216; overlay.UpdateLayout();
+            var compactReady = await ResizeForCaptureAsync(overlay, 280, 216);
+            Verify("Compact preview uses actual 280 x 216 window bounds", compactReady);
+            if (!compactReady) throw new TimeoutException($"Compact preview resize did not converge: {overlay.Bounds.Size}");
+            overlay.Update(85, points, now, "模拟数据");
             Capture(overlay, Path.Combine(directory, "overlay-compact-preview.png"));
             Verify("Compact layout retains readable statistics and chart", overlay.AverageLabel.Bounds.Height > 0 && overlay.Chart.Bounds.Height >= 40);
             Verify("Preview contains rendered chart", new FileInfo(Path.Combine(directory, "overlay-preview.png")).Length > 1000);
@@ -96,6 +102,20 @@ public static class SmokeChecks
             File.WriteAllLines(Path.Combine(directory, "smoke-test.txt"), results);
             foreach (var result in results) Console.WriteLine(result);
         }
+    }
+    private static async Task<bool> ResizeForCaptureAsync(Window window, double width, double height)
+    {
+        window.Width = width; window.Height = height;
+        var timeout = System.Diagnostics.Stopwatch.StartNew();
+        do
+        {
+            // Native ConfigureNotify / resize callbacks run asynchronously. Layout alone
+            // cannot turn a requested size into an observed platform window size.
+            await Task.Delay(50);
+            window.UpdateLayout();
+            if (Math.Abs(window.Bounds.Width - width) < .01 && Math.Abs(window.Bounds.Height - height) < .01) return true;
+        } while (timeout.Elapsed < TimeSpan.FromSeconds(2));
+        return false;
     }
     private static void Capture(Window window, string path)
     {
