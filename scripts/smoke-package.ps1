@@ -26,6 +26,11 @@ $start.UseShellExecute = $false
 if ($IsMacOS) {
     $bundles = @(Get-ChildItem -LiteralPath $PublishDirectory -Directory -Filter '*.app')
     if ($bundles.Count -ne 1) { throw 'Expected one macOS app bundle.' }
+    # Keep loader diagnostics in CI even if dyld exits before managed code starts.
+    & /usr/bin/file (Join-Path $bundles[0].FullName 'Contents/MacOS/HeartBeat')
+    $nativeLibraries = @(Get-ChildItem -LiteralPath (Join-Path $bundles[0].FullName 'Contents/MonoBundle') -Filter '*.dylib')
+    foreach ($library in $nativeLibraries) { & /usr/bin/file $library.FullName }
+    & /usr/bin/otool -L (Join-Path $bundles[0].FullName 'Contents/MonoBundle/libSystem.Globalization.Native.dylib')
     $start.FileName = '/usr/bin/open'
     foreach ($argument in @('-n', '-W', $bundles[0].FullName, '--args')) { $start.ArgumentList.Add($argument) }
     # Run the bundle executable first so native startup failures reach CI stderr.
