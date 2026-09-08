@@ -9,6 +9,14 @@ Windows 使用 WinRT / Win32，Mac 使用 CoreBluetooth / AppKit，Linux 使用 
 对应实现提交 `e57331bc7b2b327e028dec00480e3effc3788e91`。
 四种通过启动验收的包均已生成；最终 Release 由相同门槛的版本标签工作流发布。
 
+发布已完成：[v2.0.0-preview.1](https://github.com/neepoo/heartBeatDisplayer/releases/tag/v2.0.0-preview.1)，
+对应提交 `bedd35c8db6ca53f724ea78ec5320e06f0a52b8e`。
+[主分支检查](https://github.com/neepoo/heartBeatDisplayer/actions/runs/34192639756)和
+[标签发布检查](https://github.com/neepoo/heartBeatDisplayer/actions/runs/34193131128)均全部通过。
+已确认 Release 非草稿、标为预发布，四个包和四份 SHA256 共八个附件齐全；
+下载的四份校验文件与 GitHub 已上传包的 SHA256 摘要逐一匹配。
+`releases/latest` 仍指向 `v1.1.0` 稳定版。
+
 ### 自动检查
 
 - Core：21 项；共享 Headless：33 项；另有 4 项禁用 JSON 反射后的配置格式、
