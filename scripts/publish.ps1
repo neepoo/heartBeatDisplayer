@@ -3,10 +3,8 @@ $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $env:DOTNET_CLI_HOME = Join-Path $projectRoot '.cli'
 $env:DOTNET_CLI_TELEMETRY_OPTOUT = '1'
-[xml]$project = Get-Content -LiteralPath (Join-Path $projectRoot 'src\HeartBeat.App\HeartBeat.App.csproj')
-$version = [string]$project.Project.PropertyGroup.Version
-if ($version -notmatch '^\d+\.\d+\.\d+(?:[-+][\w.-]+)?$') { throw 'Invalid application version.' }
-$packageName = "HeartBeat-$version-win-x64"
+$packageInfo = & (Join-Path $PSScriptRoot 'get-package-info.ps1')
+$packageName = $packageInfo.PackageName
 $output = Join-Path $projectRoot "artifacts\$packageName"
 Push-Location $projectRoot
 try {

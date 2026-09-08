@@ -1,0 +1,118 @@
+name: CI and Release
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+jobs:
+  build:
+    name: Windows build and tests
+    runs-on: windows-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_NOLOGO: '1'
+    outputs:
+      version: ${{ steps.package.outputs.version }}
+      package-name: ${{ steps.package.outputs.package-name }}
+      prerelease: ${{ steps.package.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Validate version and release tag
+        id: package
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          $tag = if ($env:REF_TYPE -eq 'tag') { $env:REF_NAME } else { '' }
+          $info = ./scripts/get-package-info.ps1 -Tag $tag
+          "version=$($info.Version)" >> $env:GITHUB_OUTPUT
+          "package-name=$($info.PackageName)" >> $env:GITHUB_OUTPUT
+          "prerelease=$($info.IsPrerelease.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          dotnet-version: '10.0.x'
+      - name: Restore
+        run: dotnet restore HeartBeat.slnx
+      - name: Build Release
+        run: dotnet build HeartBeat.slnx -c Release --no-restore
+      - name: Core behavior tests
+        run: |
+          dotnet run --project tests/HeartBeat.Tests -c Release --no-build 2>&1 | Tee-Object -FilePath core-tests.txt
+          if ($LASTEXITCODE -ne 0) { throw 'Core tests failed.' }
+      - name: WPF integration tests with simulated heart rate
+        timeout-minutes: 3
+        run: dotnet run --project tests/HeartBeat.App.Tests -c Release --no-build -- --demo --settings-dir artifacts/ci-smoke
+      - name: Package self-contained Windows app
+        run: ./scripts/publish.ps1 -SkipTests
+      - name: Upload test reports and previews
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: test-results
+          path: |
+            core-tests.txt
+            artifacts/ci-smoke/smoke-test.txt
+            artifacts/ci-smoke/*-preview.png
+          retention-days: 14
+          if-no-files-found: warn
+      - name: Upload Windows package
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: windows-package
+          path: |
+            artifacts/${{ steps.package.outputs.package-name }}.zip
+            artifacts/${{ steps.package.outputs.package-name }}.zip.sha256
+          compression-level: 0
+          retention-days: 14
+          if-no-files-found: error
+
+  release:
+    name: Publish GitHub Release
+    if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') }}
+    needs: build
+    runs-on: windows-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: windows-package
+          path: release-assets
+      - name: Verify checksum and publish tagged version
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_VERSION: ${{ needs.build.outputs.version }}
+          PACKAGE_NAME: ${{ needs.build.outputs.package-name }}
+          IS_PRERELEASE: ${{ needs.build.outputs.prerelease }}
+        run: |
+          $zip = Join-Path 'release-assets' "$env:PACKAGE_NAME.zip"
+          $checksum = "$zip.sha256"
+          $expected = ((Get-Content -LiteralPath $checksum -Raw).Trim() -split '\s+')[0]
+          if ((Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash -ne $expected) {
+            throw 'Release package checksum mismatch.'
+          }
+          $flags = @('--verify-tag', '--generate-notes', '--title', "HeartBeat $env:RELEASE_VERSION")
+          if ($env:IS_PRERELEASE -eq 'true') { $flags += '--prerelease' }
+          gh release create $env:RELEASE_TAG $zip $checksum @flags
+          if ($LASTEXITCODE -ne 0) { throw 'Release creation failed. Existing releases are never overwritten automatically.' }
