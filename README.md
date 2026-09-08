@@ -2,126 +2,109 @@
 
 [![CI and Release](https://github.com/neepoo/heartBeatDisplayer/actions/workflows/ci-release.yml/badge.svg)](https://github.com/neepoo/heartBeatDisplayer/actions/workflows/ci-release.yml)
 
-Windows 上的轻量心率悬浮工具：蓝牙直连 Garmin Forerunner 255，在桌面或无边框游戏上方显示当前 BPM、心跳动效、最近 5 分钟的真实心率趋势及平均／最低／最高心率。
+桌面心率悬浮工具：通过 BLE 接收 Garmin Forerunner 255 广播，在屏幕上显示当前 BPM、心跳动效、最近 5 分钟曲线及平均／最低／最高心率。界面使用 Avalonia，心率与重连逻辑由三端共享。
 
-支持 Windows 10 2004（19041）或更新版本 / Windows 11 x64。程序自带 .NET 运行时，真实心率连接需要电脑具有可用的 BLE 蓝牙适配器。
+**跨平台预览版：[2.0.0-preview.1](https://github.com/neepoo/heartBeatDisplayer/releases/tag/v2.0.0-preview.1)**。原 Windows WPF 稳定版仍可下载：[1.1.0](https://github.com/neepoo/heartBeatDisplayer/releases/tag/v1.1.0)。仓库和发布包公开，无需登录即可下载；`releases/latest` 指向稳定版，不包含预览版。
 
-下载：[最新 Release](https://github.com/neepoo/heartBeatDisplayer/releases/latest)。仓库及发布包公开，无需登录 GitHub 即可浏览和下载。
+## 下载与启动
 
-## v1.1.0 更新
+在 Release 的 **Assets** 下载对应系统的包，勿选 Source code。每个包均自带 .NET 运行时，并附 `.sha256` 校验文件。解压时保留全部文件，更新时从托盘退出旧版，再将新版解压到独立目录。
 
-- 解锁后可拖动四边、四角调整大小；右下角提供缩放标记，重启后恢复尺寸。默认 320 × 240，最小 280 × 216，数字及图表随窗口调整布局。
-- 新增按当前 BPM 推算节奏的心跳动效；数据失效或窗口隐藏时停止，可在设置中关闭动效。
-- 新增最近 5 分钟有效样本的均值、最低值及最高值。没有有效样本时显示 `--`，旧版设置自动兼容。
-- 发布包使用独立版本目录。更新时先从托盘退出旧版，再运行新版 EXE。
+| 系统 | 包名后缀 | 启动方式 |
+| --- | --- | --- |
+| Windows 10 2004+ / Windows 11，x64 | `win-x64.zip` | 双击 `HeartBeat.exe` |
+| macOS 14+，Apple Silicon | `osx-arm64.zip` | 解压后打开 `HeartBeat.app` |
+| macOS 14+，Intel | `osx-x64.zip` | 解压后打开 `HeartBeat.app` |
+| Ubuntu 24.04，x64、X11 桌面 | `linux-x64.tar.gz` | 解压后运行 `./HeartBeat` |
 
-## 开始使用
+Mac 包仅做临时签名，未使用 Developer ID 签名或 Apple 公证。首次打开可能被系统拦截；确认下载来源后，在系统设置的“隐私与安全性”中允许打开。真实连接需要同意蓝牙权限；拒绝后可在该设置中重新允许。
 
-1. 在 Release 的 **Assets** 下载 `HeartBeat-<版本号>-win-x64.zip`（不要下载 Source code），解压并保留全部文件，双击 `HeartBeat.exe`。更新前从托盘退出旧版，将新版解压到独立目录。
-2. 电脑开启蓝牙；需要支持 Bluetooth Low Energy（BLE）的适配器及正常的 Windows 驱动。
-3. 戴好手表，长按 **UP → 腕式心率 → 广播心率 → START**。部分固件把“腕式心率”放在健康相关菜单里，也可以从控制菜单开启心率广播。务必按 START 开始广播。
-4. 程序中点击 **扫描设备**，等待约 8 秒，选择自己的手表并点击 **连接**。无需登录 Garmin 账号，也无需通过手机中转。
-5. 将悬浮窗拖到合适位置，再启用 **锁定位置并开启鼠标穿透**。游戏使用 **无边框窗口 / 无边框全屏**。
+Linux 需要运行中的 BlueZ、系统 D-Bus、可用的 BLE 适配器和桌面图形依赖。在 Ubuntu 中安装：
 
-官方参考：[255 心率广播操作](https://www8.garmin.com/manuals/webhelp/GUID-676967A0-1B23-4384-9BC9-76F3D643F1C8/EN-US/GUID-D8D363C2-0690-48D4-95E2-A3557E7D53C2.html)、[蓝牙广播兼容说明](https://support.garmin.com/nl-NL/?faq=Zj1947s6pqAHzBCAhLhrC9)。
+```bash
+sudo apt install bluez libx11-6 libxext6 libice6 libsm6 libfontconfig1 libgl1 libxcursor1 libxrandr2 libxi6 fonts-noto-cjk
+tar -xzf HeartBeat-2.0.0-preview.1-linux-x64.tar.gz
+./HeartBeat
+```
 
-## 日常操作
+程序以普通用户身份运行。首轮针对 X11；Wayland 暂不保证置顶、鼠标穿透和全局快捷键，建议登录 X11 会话。某些桌面没有托盘区域，程序会保留设置入口，不依赖安装托盘扩展才能退出。
+
+## 连接手表
+
+1. 确认电脑蓝牙可用并戴好手表。
+2. Forerunner 255 长按 **UP → 腕式心率 → 广播心率 → START**。部分固件的菜单位置不同；务必开始广播，不能只停留在广播页面。
+3. 在程序中扫描设备，选择自己的手表并连接。无需 Garmin 账号或手机中转。
+4. 调整悬浮窗位置、尺寸和透明度，然后锁定以开启鼠标穿透。Windows 游戏使用无边框模式；独占全屏不在支持范围。
+
+官方参考：[255 心率广播操作](https://www8.garmin.com/manuals/webhelp/GUID-676967A0-1B23-4384-9BC9-76F3D643F1C8/EN-US/GUID-D8D363C2-0690-48D4-95E2-A3557E7D53C2.html)。
+
+## 操作与数据
 
 | 操作 | 入口 |
 | --- | --- |
-| 显示 / 隐藏悬浮窗 | `Ctrl + Alt + H`，或托盘菜单 |
-| 锁定 / 解锁、鼠标穿透 | `Ctrl + Alt + L`，或设置 / 托盘菜单 |
-| 调整悬浮窗大小 | 解锁后拖动窗口边缘或右下角；锁定时禁止缩放 |
-| 开关心跳动效 | 连接与设置 → 心跳动效 |
-| 调整背景透明度 | 连接与设置 → 背景不透明度（40%～95%） |
-| 窗口移出屏幕后找回 | 托盘菜单 → 重置悬浮窗位置 |
-| 打开设置 | 双击托盘图标，或右键菜单 |
-| 完全退出 | 托盘菜单 → 退出 |
+| 显示／隐藏 | `Ctrl + Alt + H` 或托盘菜单 |
+| 锁定／解锁 | `Ctrl + Alt + L` 或设置／托盘菜单；Mac 的 Alt 对应 Option |
+| 调整尺寸 | 解锁后拖动边缘或右下角 |
+| 透明度、心跳动效 | 设置窗口 |
+| 找回移出屏幕的窗口 | 重置位置 |
+| 完全退出 | 设置或托盘的退出入口 |
 
-关闭设置窗口只隐藏设置，程序继续运行。快捷键被其他软件占用时会提示，可使用托盘菜单操作。再次启动已在运行的程序会提示从托盘打开。
+快捷键占用或平台不支持时显示提示，可通过界面操作。默认窗口 320 × 240，最小 280 × 216；记住窗口位置、宽高、锁定状态、透明度和动效偏好。
 
-首次默认允许拖动和缩放，之后记住位置、宽高、锁定状态、背景透明度、动效开关及最后成功连接的真实设备。重启后尝试连接上次的手表；主动点击“断开”会停止本次会话的重连。
+- 当前读数超过 5 秒未更新时显示 `--`，曲线缺失处留空，不补造数据。
+- 曲线和统计采用最近 5 分钟有效样本，每秒保留最后一次测量；均值按整数 BPM 四舍五入。
+- 心跳图标依据 BPM 生成节奏动效，并非精确的逐次心跳时刻；数据失效、隐藏或关闭动效时停止。
+- 意外断开后按 2、4、8、15 秒间隔重试；主动断开停止本次重连。恢复连接后重新订阅通知。
+- 心率只保留在内存，退出即清空。设备标识只用于当前系统重连，不能跨系统复制使用。
 
-## 数据如何显示
+设置位置：Windows `%LOCALAPPDATA%\HeartBeatDisplayer`（兼容 1.x）；macOS `~/Library/Application Support/HeartBeatDisplayer`；Linux `$XDG_CONFIG_HOME/HeartBeatDisplayer`，未设置时为 `~/.config/HeartBeatDisplayer`。损坏或过期的设置会恢复可用默认值。
 
-- 大号数字在收到手表通知后更新。实际测量及广播频率由手表决定。
-- 曲线显示最近 5 分钟的 BPM 趋势，每秒保留最后一次测量，纵轴自动适配读数。
-- 下方均值、最低值及最高值使用同一时间范围内收到的有效样本；缺失数据不参与统计。均值按整数 BPM 四舍五入。
-- 心跳图标是依据当前 BPM 生成的节奏动效，不代表手表逐次心跳的精确时间。
-- 5 秒没有有效数据时，当前数字显示 `--`。数据缺失处留空；没有收到的数据不会被补成假曲线。
-- 蓝牙断开后自动重试，失败间隔依次为 2、4、8、15 秒，之后维持 15 秒。恢复连接后重新订阅心率数据。
-- 心率只保留在内存，退出即清空。设置保存在 `%LOCALAPPDATA%\HeartBeatDisplayer\settings.json`。
+## 无手表预览与排查
 
-## 没有手表时预览
+设置中选择“试用模拟数据”，或运行 `--demo`。Windows 包附 `演示模式.cmd`，Linux 包附 `demo.sh`；Mac 可运行：
 
-在设置中点击 **试用模拟数据**，或双击发布包中的 `演示模式.cmd`。也可运行：
-
-```powershell
-.\HeartBeat.exe --demo
+```bash
+open HeartBeat.app --args --demo
 ```
 
-演示时卡片明确显示“演示 · 模拟数据”。连接真实设备即可退出演示；模拟设备不会覆盖记住的真实设备。若已有实例运行，先从托盘退出再用启动脚本打开。
+模拟模式明确标注模拟数据，不初始化蓝牙，也不覆盖记住的真实设备。若已有实例，先退出再以其他启动参数运行。
 
-## 连接排查
+扫描为空时，确认手表已开始广播并靠近电脑。没有适配器、蓝牙关闭、权限拒绝或 BlueZ 不可用时，根据程序提示修正；“已配对”不代表已订阅心率通知。手表广播地址变化后可重新扫描。新平台需要按[实机验证清单](https://github.com/neepoo/heartBeatDisplayer/blob/main/docs/ble-validation.md)检查。
 
-- **未检测到蓝牙适配器**：在 Windows 设置及设备管理器中确认蓝牙可用；若电脑没有蓝牙，需要接入支持 BLE 的适配器。
-- **扫描为空**：确认手表已经开始广播而非只停留在设置页面；靠近电脑后重新扫描。
-- **找到设备但无法连接**：确认选中的是自己的心率广播设备；关闭其他占用其蓝牙连接的软件后重试。Windows 中“已配对”不等于应用已经订阅心率广播。
-- **电脑休眠或手表停止广播**：数字会变为 `--`；恢复蓝牙及广播后程序会重连。若手表变更了广播地址，重新扫描并选择它。
-- **游戏中看不到**：检查游戏是无边框模式，使用快捷键显示或托盘重置位置；当前不支持独占全屏，其他置顶窗口也可能影响显示顺序。
+## 开发与验证
 
-## 从源码运行
-
-需要 Windows 10 2004（19041）或更新版本 / Windows 11 x64，以及 .NET 10 SDK。
+需要 **.NET SDK 10.0.1xx** 和 **PowerShell 7**。`global.json` 在此 SDK 功能版本内采用最新补丁，NuGet 缓存放在项目 `.packages`。
 
 ```powershell
-dotnet run --project src/HeartBeat.App
+# Windows；其他平台的入口分别为 src/HeartBeat.Mac、src/HeartBeat.Linux
 dotnet run --project src/HeartBeat.App -- --demo
+
+# 当前系统的核心、共享 UI、平台检查与构建
+pwsh -File scripts/test.ps1
+
+# 完整测试通过后生成当前系统的独立运行包
+pwsh -File scripts/publish.ps1
 ```
 
-本地依赖缓存放在项目 `.packages`。自动化验证及发布命令：
+Mac 构建需要 Xcode 26.0.1 和 `dotnet workload install macos --version 10.0.100`，使用 `-RuntimeIdentifier osx-arm64` 或 `osx-x64` 打包。Windows 和 Linux 的 RID 分别为 `win-x64`、`linux-x64`。必须在目标操作系统上发布。
+
+`HeartBeat.slnx` 是共享代码、Windows 入口和相关检查的开发解决方案；macOS/Linux 按平台项目或 `scripts/test.ps1` 构建，避免其他系统被要求安装 Windows/macOS 工作负载。
+
+测试项目使用 `dotnet run`，不能以 `dotnet test` 代替。共享 Headless 检查只覆盖布局、设置和数据流；原生窗口检查使用发布包的 `--demo --smoke-test --settings-dir <独立目录>`，输出报告、预览并自动退出。CI 的 Linux 窗口检查使用 Xvfb 配合窗口管理器。
+
+**验证边界**：macOS/Linux 为预览支持，当前未在真实手表和目标桌面上验收蓝牙连接、休眠恢复及多屏操作；Mac 解锁点击／拖动时的应用激活行为仍需实机验证，禁止窗口成为 key/main 的原生检查不等于该场景实测。自动检查不替代硬件测试。Windows 历史开发环境也未检测到可用蓝牙适配器，因此不宣称完成三端真实连接、实际延迟或游戏适配验证。
+
+## CI 与 Release
+
+[CI 工作流](https://github.com/neepoo/heartBeatDisplayer/actions/workflows/ci-release.yml) 为 Windows x64、Mac arm64/x64、Linux x64 分别构建、测试、打包和启动检查。报告、预览和经过检查的包保留 14 天。
+
+版本唯一来源为 `Directory.Build.props`。更新版本和文档，提交推送并等待 CI 通过，再推送对应标签，例如：
 
 ```powershell
-# 核心行为测试；失败返回非零退出码
-dotnet run --project tests/HeartBeat.Tests -c Release
-
-# 真实 WPF 应用集成检查，会短暂显示本程序窗口并自动退出
-# 使用独立目录，不读取或覆盖正常用户设置
-dotnet run --project tests/HeartBeat.App.Tests -c Release -- --demo --settings-dir artifacts/smoke-session
-
-# 可追加 --probe-bluetooth，扫描结果及界面预览保存在上述目录
-
-dotnet build HeartBeat.slnx -c Release
-
-# 构建自带运行时的发布包，首次需要从 NuGet 下载官方依赖
-.\scripts\publish.ps1
+git tag -a v2.0.0-preview.1 -m "发布跨平台预览版"
+git push origin v2.0.0-preview.1
 ```
 
-输出：`artifacts\HeartBeat-1.1.0-win-x64\HeartBeat.exe` 和 `artifacts\HeartBeat-1.1.0-win-x64.zip`，附 SHA256 校验文件。后续版本按项目中的 Version 自动命名。
+示例标签已经存在时不可重复创建或移动；下次发布递增版本号。只有版本标签触发 Release，四个任务全部通过后统一上传四个包及 SHA256；带后缀的版本标为预发布，不替换稳定版。普通提交和手动工作流只生成 CI 工件。
 
-测试项目是可执行的检查程序，使用 `dotnet run`；`dotnet test` 不会执行这些检查。`publish.ps1` 默认只运行核心测试，完整验证还须单独运行 WPF 集成检查。
-
-## CI 与 GitHub Release
-
-[CI and Release 工作流](https://github.com/neepoo/heartBeatDisplayer/actions/workflows/ci-release.yml) 在推送 `main`、提交面向 `main` 的 PR、推送 `v*` 标签时运行，也支持在 Actions 页面手动运行验证。
-
-- Windows runner 安装 .NET 10，恢复依赖、Release 构建、执行核心测试和使用模拟心率的 WPF 集成检查，再调用同一个本地打包脚本。
-- Actions 的 `windows-package` 工件包含免安装 ZIP 和 SHA256；`test-results` 包含检查报告和界面预览，保留 14 天。测试失败会阻止发布，并尽可能保留诊断文件。
-- 只有推送版本标签才创建 Release；标签必须与 `src/HeartBeat.App/HeartBeat.App.csproj` 的 `Version` 完全对应，例如 `1.1.0` 对应 `v1.1.0`。带 `-rc.1` 等后缀的版本标为预发布。
-- Release 上传本次 CI 生成并校验的 ZIP 和 SHA256，自动生成更新说明。使用 GitHub 自带 `GITHUB_TOKEN`，无需新增 PAT 或仓库 Secret；只有发布任务具有 `contents: write` 权限。
-- 手动运行工作流只验证和生成工件。已发布的 Release 不自动覆盖；需要修改应用或发布包时，递增版本并创建新标签。
-
-发布下一版示例（先将项目 `Version` 改成 `1.2.0`，同步更新说明并提交推送，等待该提交的 CI 通过）：
-
-```powershell
-git tag -a v1.2.0 -m "发布 v1.2.0"
-git push origin v1.2.0
-```
-
-标签触发的工作流全部通过后，可在 [Releases](https://github.com/neepoo/heartBeatDisplayer/releases) 下载。校验下载文件时，运行 `Get-FileHash .\HeartBeat-<版本号>-win-x64.zip -Algorithm SHA256`，与随包 `.sha256` 中的哈希对照。
-
-## 验证范围
-
-核心测试覆盖协议解析、缓存、超时、重连与旧回调隔离；WPF 检查覆盖模拟数据流、穿透样式、隐藏/显示、不抢焦点、恢复位置、设置和退出，并输出预览图片。
-
-CI 的模拟数据检查不验证蓝牙硬件。真实手表连接、通知到屏幕延迟、多屏混合缩放及具体游戏中持续运行，需要在目标硬件上验证。请按仓库的 [实机验证清单](https://github.com/neepoo/heartBeatDisplayer/blob/main/docs/ble-validation.md) 操作。当前不包含独占全屏注入、OBS 专用输出、历史导出和心率报警。
+打包使用唯一暂存目录，路径由脚本输出，避免覆盖运行中的程序和混入旧文件。ZIP/TAR 位于 `artifacts/HeartBeat-<版本>-<RID>.*`。可使用 `Get-FileHash <包路径> -Algorithm SHA256`，与随包 `.sha256` 内容对照。

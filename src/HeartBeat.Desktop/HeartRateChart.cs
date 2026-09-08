@@ -2,24 +2,25 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using System.Windows;
-using System.Windows.Media;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Media;
 using HeartBeat.Core;
 
-namespace HeartBeat.App;
+namespace HeartBeat.Desktop;
 
-public sealed class HeartRateChart : FrameworkElement
+public sealed class HeartRateChart : Control
 {
     private IReadOnlyList<HeartRateSample> _points = Array.Empty<HeartRateSample>();
     private DateTimeOffset _now;
-    private static readonly Brush Muted = new SolidColorBrush(Color.FromRgb(128, 140, 158));
-    private static readonly Brush Accent = new SolidColorBrush(Color.FromRgb(251, 113, 133));
+    private static readonly IBrush Muted = new SolidColorBrush(Color.FromRgb(128, 140, 158));
+    private static readonly IBrush Accent = new SolidColorBrush(Color.FromRgb(251, 113, 133));
     public void Update(IReadOnlyList<HeartRateSample> points, DateTimeOffset now) { _points = points; _now = now; InvalidateVisual(); }
-    protected override void OnRender(DrawingContext dc)
+    public override void Render(DrawingContext dc)
     {
-        base.OnRender(dc);
-        var width = Math.Max(1, ActualWidth - 28);
-        var height = Math.Max(1, ActualHeight - 17);
+        base.Render(dc);
+        var width = Math.Max(1, Bounds.Width - 28);
+        var height = Math.Max(1, Bounds.Height - 17);
         var values = _points.Where(p => p.Bpm.HasValue).Select(p => p.Bpm!.Value).ToArray();
         var low = values.Length == 0 ? 50 : Math.Max(0, Math.Floor((values.Min() - 10) / 10d) * 10);
         var high = values.Length == 0 ? 110 : Math.Ceiling((values.Max() + 10) / 10d) * 10;
@@ -42,21 +43,19 @@ public sealed class HeartRateChart : FrameworkElement
                 if (point.Bpm is null || point.Timestamp > _now || _now - point.Timestamp >= HeartRateHistory.Window) { previous = null; continue; }
                 var position = Position(point);
                 if (previous is null || point.Timestamp - previous.Timestamp >= HeartRateHistory.Freshness)
-                    ctx.BeginFigure(position, false, false);
-                else ctx.LineTo(position, true, false);
+                    ctx.BeginFigure(position, false);
+                else ctx.LineTo(position);
                 previous = point;
             }
         }
-        geometry.Freeze();
-        dc.PushClip(new RectangleGeometry(new Rect(-3, -2, width + 6, height + 5)));
-        dc.DrawGeometry(null, new Pen(Accent, 1.8) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round, LineJoin = PenLineJoin.Round }, geometry);
+        using var clip = dc.PushClip(new Rect(-3, -2, width + 6, height + 5));
+        dc.DrawGeometry(null, new Pen(Accent, 1.8) { LineCap = PenLineCap.Round, LineJoin = PenLineJoin.Round }, geometry);
         if (previous is not null && _now - previous.Timestamp < HeartRateHistory.Freshness)
         {
             var last = Position(previous);
             dc.DrawEllipse(new SolidColorBrush(Color.FromArgb(38, 251, 113, 133)), null, last, 6, 6);
             dc.DrawEllipse(Accent, null, last, 2.5, 2.5);
         }
-        dc.Pop();
     }
-    private void Text(DrawingContext dc, string text, Point point, double size) => dc.DrawText(new FormattedText(text, CultureInfo.GetCultureInfo("zh-CN"), FlowDirection.LeftToRight, new Typeface("Segoe UI, Microsoft YaHei UI"), size, Muted, VisualTreeHelper.GetDpi(this).PixelsPerDip), point);
+    private void Text(DrawingContext dc, string text, Point point, double size) => dc.DrawText(new FormattedText(text, CultureInfo.GetCultureInfo("zh-CN"), FlowDirection.LeftToRight, new Typeface("Segoe UI, Microsoft YaHei UI"), size, Muted), point);
 }

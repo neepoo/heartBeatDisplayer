@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleIdentifier</key><string>com.neepoo.heartbeat</string>
+  <key>CFBundleName</key><string>HeartBeat</string>
+  <key>CFBundleDisplayName</key><string>HeartBeat</string>
+  <key>CFBundleExecutable</key><string>HeartBeat</string>
+  <key>CFBundlePackageType</key><string>APPL</string>
+  <key>LSMinimumSystemVersion</key><string>14.0</string>
+  <key>NSHighResolutionCapable</key><true/>
+  <key>NSBluetoothAlwaysUsageDescription</key><string>HeartBeat 需要蓝牙权限来接收 Garmin 手表的实时心率广播。</string>
+  <key>NSBluetoothPeripheralUsageDescription</key><string>HeartBeat 通过低功耗蓝牙读取手表的标准心率服务。</string>
+</dict>
+</plist>

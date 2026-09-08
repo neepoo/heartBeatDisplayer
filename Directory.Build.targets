@@ -1,0 +1,6 @@
+<Project>
+  <PropertyGroup>
+    <!-- Build locally and in CI without the optional Avalonia usage-reporting task. -->
+    <UsedAvaloniaProducts></UsedAvaloniaProducts>
+  </PropertyGroup>
+</Project>

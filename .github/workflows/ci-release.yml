@@ -2,7 +2,7 @@ name: CI and Release
 
 on:
   push:
-    branches: [main]
+    branches: [main, feature/cross-platform]
     tags: ['v*']
   pull_request:
     branches: [main]
@@ -17,19 +17,27 @@ concurrency:
 
 jobs:
   build:
-    name: Windows build and tests
-    runs-on: windows-latest
-    timeout-minutes: 20
+    name: Build and test (${{ matrix.rid }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-2025
+            rid: win-x64
+          - os: macos-15
+            rid: osx-arm64
+          - os: macos-15-intel
+            rid: osx-x64
+          - os: ubuntu-24.04
+            rid: linux-x64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
     defaults:
       run:
         shell: pwsh
     env:
       DOTNET_CLI_TELEMETRY_OPTOUT: '1'
       DOTNET_NOLOGO: '1'
-    outputs:
-      version: ${{ steps.package.outputs.version }}
-      package-name: ${{ steps.package.outputs.package-name }}
-      prerelease: ${{ steps.package.outputs.prerelease }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
@@ -39,46 +47,76 @@ jobs:
         env:
           REF_TYPE: ${{ github.ref_type }}
           REF_NAME: ${{ github.ref_name }}
+          TARGET_RID: ${{ matrix.rid }}
         run: |
           $tag = if ($env:REF_TYPE -eq 'tag') { $env:REF_NAME } else { '' }
-          $info = ./scripts/get-package-info.ps1 -Tag $tag
-          "version=$($info.Version)" >> $env:GITHUB_OUTPUT
-          "package-name=$($info.PackageName)" >> $env:GITHUB_OUTPUT
-          "prerelease=$($info.IsPrerelease.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
+          $info = ./scripts/get-package-info.ps1 -Tag $tag -RuntimeIdentifier $env:TARGET_RID
+          "archive-name=$($info.ArchiveName)" >> $env:GITHUB_OUTPUT
       - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
         with:
-          dotnet-version: '10.0.x'
-      - name: Restore
-        run: dotnet restore HeartBeat.slnx
-      - name: Build Release
-        run: dotnet build HeartBeat.slnx -c Release --no-restore
-      - name: Core behavior tests
+          dotnet-version: '10.0.1xx'
+      - name: Select matching Xcode
+        if: runner.os == 'macOS'
+        shell: bash
+        run: sudo xcode-select -s /Applications/Xcode_26.0.1.app/Contents/Developer
+      - name: Install macOS workload
+        if: runner.os == 'macOS'
+        run: dotnet workload install macos --version 10.0.100
+      - name: Install Linux desktop test dependencies
+        if: runner.os == 'Linux'
+        shell: bash
         run: |
-          dotnet run --project tests/HeartBeat.Tests -c Release --no-build 2>&1 | Tee-Object -FilePath core-tests.txt
-          if ($LASTEXITCODE -ne 0) { throw 'Core tests failed.' }
-      - name: WPF integration tests with simulated heart rate
-        timeout-minutes: 3
-        run: dotnet run --project tests/HeartBeat.App.Tests -c Release --no-build -- --demo --settings-dir artifacts/ci-smoke
-      - name: Package self-contained Windows app
-        run: ./scripts/publish.ps1 -SkipTests
+          sudo apt-get update
+          sudo apt-get install -y libx11-6 libxext6 libice6 libsm6 libfontconfig1 libgl1 libxcursor1 libxrandr2 libxi6 fonts-noto-cjk xvfb openbox dbus-x11 bluez
+      - name: Core, shared UI and platform checks
+        env:
+          TARGET_RID: ${{ matrix.rid }}
+        run: |
+          ./scripts/test.ps1 -RuntimeIdentifier $env:TARGET_RID 2>&1 | Tee-Object -FilePath test-results.txt
+      - name: Package self-contained app
+        id: publish
+        env:
+          TARGET_RID: ${{ matrix.rid }}
+        run: ./scripts/publish.ps1 -SkipTests -RuntimeIdentifier $env:TARGET_RID
+      - name: Packaged native window checks
+        if: runner.os != 'Linux'
+        timeout-minutes: 6
+        env:
+          TARGET_RID: ${{ matrix.rid }}
+        run: ./scripts/smoke-package.ps1 -RuntimeIdentifier $env:TARGET_RID
+      - name: Packaged X11 window checks
+        if: runner.os == 'Linux'
+        timeout-minutes: 4
+        shell: bash
+        env:
+          TARGET_RID: ${{ matrix.rid }}
+        run: |
+          xvfb-run -a -s '-screen 0 1920x1080x24' dbus-run-session -- bash -eu -c '
+            openbox > /tmp/heartbeat-openbox.log 2>&1 &
+            wm_pid=$!
+            trap "kill $wm_pid 2>/dev/null || true" EXIT
+            sleep 2
+            pwsh -NoProfile -File ./scripts/smoke-package.ps1 -RuntimeIdentifier "$TARGET_RID"
+          '
       - name: Upload test reports and previews
         if: ${{ always() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: test-results
+          name: test-results-${{ matrix.rid }}
           path: |
-            core-tests.txt
-            artifacts/ci-smoke/smoke-test.txt
-            artifacts/ci-smoke/*-preview.png
+            test-results.txt
+            artifacts/startup-warning-*/corrupt-startup/startup-warning-test.txt
+            artifacts/smoke-*/smoke-test.txt
+            artifacts/smoke-*/*-preview.png
           retention-days: 14
           if-no-files-found: warn
-      - name: Upload Windows package
+      - name: Upload verified package
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: windows-package
+          name: package-${{ matrix.rid }}
           path: |
-            artifacts/${{ steps.package.outputs.package-name }}.zip
-            artifacts/${{ steps.package.outputs.package-name }}.zip.sha256
+            artifacts/${{ steps.package.outputs.archive-name }}
+            artifacts/${{ steps.package.outputs.archive-name }}.sha256
           compression-level: 0
           retention-days: 14
           if-no-files-found: error
@@ -87,32 +125,36 @@ jobs:
     name: Publish GitHub Release
     if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') }}
     needs: build
-    runs-on: windows-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: windows-package
+          pattern: package-*
+          merge-multiple: true
           path: release-assets
-      - name: Verify checksum and publish tagged version
+      - name: Verify all four packages and publish
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           RELEASE_TAG: ${{ github.ref_name }}
-          RELEASE_VERSION: ${{ needs.build.outputs.version }}
-          PACKAGE_NAME: ${{ needs.build.outputs.package-name }}
-          IS_PRERELEASE: ${{ needs.build.outputs.prerelease }}
         run: |
-          $zip = Join-Path 'release-assets' "$env:PACKAGE_NAME.zip"
-          $checksum = "$zip.sha256"
-          $expected = ((Get-Content -LiteralPath $checksum -Raw).Trim() -split '\s+')[0]
-          if ((Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash -ne $expected) {
-            throw 'Release package checksum mismatch.'
+          $assets = @()
+          foreach ($rid in @('win-x64','osx-arm64','osx-x64','linux-x64')) {
+            $info = ./scripts/get-package-info.ps1 -Tag $env:RELEASE_TAG -RuntimeIdentifier $rid
+            $archive = Join-Path 'release-assets' $info.ArchiveName
+            $checksum = "$archive.sha256"
+            $expected = ((Get-Content -LiteralPath $checksum -Raw).Trim() -split '\s+')[0]
+            if ((Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash -ne $expected) { throw "Checksum mismatch: $rid" }
+            $assets += $archive, $checksum
           }
-          $flags = @('--verify-tag', '--generate-notes', '--title', "HeartBeat $env:RELEASE_VERSION")
-          if ($env:IS_PRERELEASE -eq 'true') { $flags += '--prerelease' }
-          gh release create $env:RELEASE_TAG $zip $checksum @flags
-          if ($LASTEXITCODE -ne 0) { throw 'Release creation failed. Existing releases are never overwritten automatically.' }
+          $flags = @('--verify-tag', '--generate-notes', '--title', "HeartBeat $($info.Version)", '--notes-file', 'docs/release-notes.md')
+          if ($info.IsPrerelease) { $flags += '--prerelease' }
+          gh release create $env:RELEASE_TAG @assets @flags
+          if ($LASTEXITCODE -ne 0) { throw 'Release failed. Existing releases are not overwritten.' }

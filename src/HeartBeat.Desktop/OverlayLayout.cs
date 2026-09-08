@@ -1,4 +1,4 @@
-namespace HeartBeat.App;
+namespace HeartBeat.Desktop;
 
 public static class OverlayLayout
 {

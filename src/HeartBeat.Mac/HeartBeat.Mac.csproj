@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-macos</TargetFramework>
+    <SupportedOSPlatformVersion>14.0</SupportedOSPlatformVersion>
+    <RuntimeIdentifiers>osx-arm64;osx-x64</RuntimeIdentifiers>
+    <AssemblyName>HeartBeat</AssemblyName>
+    <ApplicationId>com.neepoo.heartbeat</ApplicationId>
+    <ApplicationTitle>HeartBeat</ApplicationTitle>
+    <ApplicationDisplayVersion>$([System.String]::Copy('$(Version)').Split('-')[0])</ApplicationDisplayVersion>
+    <ApplicationVersion>$(ApplicationDisplayVersion)</ApplicationVersion>
+    <CodesignKey>-</CodesignKey>
+    <EnableCodeSigning>true</EnableCodeSigning>
+    <TrimMode>copy</TrimMode>
+    <UseHardenedRuntime>false</UseHardenedRuntime>
+    <SelfContained>true</SelfContained>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../HeartBeat.Desktop/HeartBeat.Desktop.csproj" />
+    <BundleResource Include="../../README.md" LogicalName="使用说明.md" />
+  </ItemGroup>
+</Project>

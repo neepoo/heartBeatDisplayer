@@ -2,13 +2,9 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
-    <UseWPF>true</UseWPF>
-    <UseWindowsForms>true</UseWindowsForms>
-    <ImplicitUsings>disable</ImplicitUsings>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AssemblyName>HeartBeat</AssemblyName>
-    <Version>1.1.0</Version>
     <Description>Garmin live heart rate overlay</Description>
   </PropertyGroup>
-  <ItemGroup><ProjectReference Include="../HeartBeat.Core/HeartBeat.Core.csproj" /></ItemGroup>
+  <ItemGroup><ProjectReference Include="../HeartBeat.Desktop/HeartBeat.Desktop.csproj" /></ItemGroup>
 </Project>

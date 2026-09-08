@@ -1,10 +1,13 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/HeartBeat.Core/HeartBeat.Core.csproj" />
+    <Project Path="src/HeartBeat.Desktop/HeartBeat.Desktop.csproj" />
     <Project Path="src/HeartBeat.App/HeartBeat.App.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/HeartBeat.Tests/HeartBeat.Tests.csproj" />
     <Project Path="tests/HeartBeat.App.Tests/HeartBeat.App.Tests.csproj" />
+    <Project Path="tests/HeartBeat.Desktop.Tests/HeartBeat.Desktop.Tests.csproj" />
+    <Project Path="tests/HeartBeat.Mac.Tests/HeartBeat.Mac.Tests.csproj" />
   </Folder>
 </Solution>
