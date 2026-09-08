@@ -6,6 +6,7 @@
 - 共享 UI 位于 HeartBeat.Desktop；HeartBeat.App 为 Windows 入口，HeartBeat.Mac 为 macOS 入口，HeartBeat.Linux 为 Linux 入口。平台 API 不得进入共享项目。
 - 当前跨平台版本为预览阶段：Windows x64；macOS 14+ arm64/x64；Ubuntu 24.04 x64 X11。不承诺 Wayland、独占全屏和未实测的蓝牙硬件行为。
 - 保留窗口缩放、动效、五分钟统计、模拟模式、Windows 1.x 设置兼容。`--demo` 不得初始化真实蓝牙或触发权限请求。
+- 设置 JSON 使用 SettingsJsonContext 生成元数据，不能改回依赖反射构造参数的重载；Mac 发布会移除部分反射信息。修改设置时验证旧 JSON 和禁用反射后的读写。
 - 版本唯一来源是 `Directory.Build.props`。`get-package-info.ps1` 负责统一版本、RID、入口和包名；禁止各平台硬编码独立版本。
 - 行为、设置、命令、依赖或发布方式改变时，同步 README.md 与本文件；旧计划和旧验证记录不是当前功能说明。文件名保持 `AGENTS.md`，不另建 agent.md。
 

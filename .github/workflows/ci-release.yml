@@ -108,6 +108,8 @@ jobs:
             artifacts/startup-warning-*/corrupt-startup/startup-warning-test.txt
             artifacts/smoke-*/smoke-test.txt
             artifacts/smoke-*/*-preview.png
+            artifacts/smoke-*/direct-exit-check/smoke-test.txt
+            artifacts/smoke-*/direct-exit-check/*-preview.png
           retention-days: 14
           if-no-files-found: warn
       - name: Upload verified package

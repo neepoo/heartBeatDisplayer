@@ -12,8 +12,12 @@ internal static class Program
     [STAThread]
     private static int Main(string[] args)
     {
+        // Exercise the production settings path under trimming's no-reflection constraint.
+        AppContext.SetSwitch("System.Text.Json.JsonSerializer.IsReflectionEnabledByDefault", false);
         bool corruptSettings = args.Contains("--corrupt-settings");
         var directory = Path.GetFullPath(args.FirstOrDefault(arg => arg != "--corrupt-settings") ?? "artifacts/headless-session");
+        try { SettingsStoreChecks.Run(Path.Combine(directory, "serialization-checks")); }
+        catch (Exception ex) { Console.Error.WriteLine(ex); return 1; }
         bool? startupWarningVisible = null;
         if (corruptSettings)
         {

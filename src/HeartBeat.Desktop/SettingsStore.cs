@@ -26,7 +26,7 @@ public sealed class SettingsStore(string directory)
         try
         {
             if (!File.Exists(_file)) return new();
-            var settings = JsonSerializer.Deserialize<UserSettings>(File.ReadAllText(_file)) ?? new();
+            var settings = JsonSerializer.Deserialize(File.ReadAllText(_file), SettingsJsonContext.Default.UserSettings) ?? new();
             settings.BackgroundOpacity = double.IsFinite(settings.BackgroundOpacity) ? Math.Clamp(settings.BackgroundOpacity, 0.4, 0.95) : 0.8;
             settings.Width = double.IsFinite(settings.Width) ? Math.Clamp(settings.Width, OverlayLayout.MinimumWidth, OverlayLayout.MaximumWidth) : OverlayLayout.DefaultWidth;
             settings.Height = double.IsFinite(settings.Height) ? Math.Clamp(settings.Height, OverlayLayout.MinimumHeight, OverlayLayout.MaximumHeight) : OverlayLayout.DefaultHeight;
@@ -44,7 +44,7 @@ public sealed class SettingsStore(string directory)
         {
             Directory.CreateDirectory(directory);
             var temp = _file + ".tmp";
-            File.WriteAllText(temp, JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true }));
+            File.WriteAllText(temp, JsonSerializer.Serialize(settings, SettingsJsonContext.Default.UserSettings));
             File.Move(temp, _file, true);
             LastError = null;
         }
