@@ -6,7 +6,7 @@ Windows 上的轻量心率悬浮工具：蓝牙直连 Garmin Forerunner 255，�
 
 支持 Windows 10 2004（19041）或更新版本 / Windows 11 x64。程序自带 .NET 运行时，真实心率连接需要电脑具有可用的 BLE 蓝牙适配器。
 
-下载：[最新 Release](https://github.com/neepoo/heartBeatDisplayer/releases/latest)。仓库目前为私有，需登录具有仓库访问权限的 GitHub 账号。
+下载：[最新 Release](https://github.com/neepoo/heartBeatDisplayer/releases/latest)。仓库及发布包公开，无需登录 GitHub 即可浏览和下载。
 
 ## v1.1.0 更新
 

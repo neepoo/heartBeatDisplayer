@@ -12,7 +12,7 @@
 用户已授权：每次完成本项目的一次修改后，完成相关验证，创建 Git 提交并推送至本仓库的 GitHub 远程。继续执行该流程，无需重复询问是否提交或推送。
 
 - Git 提交作者：`neepoo <neepoowzk@gmail.com>`。仅设置本仓库的 Git identity，不修改全局身份。
-- 远程：`https://github.com/neepoo/heartBeatDisplayer.git`，私有仓库。
+- 远程：`https://github.com/neepoo/heartBeatDisplayer.git`，公开仓库，Release 可公开下载。
 - 提交信息使用简洁中文，说明具体行为变化；可使用 `fix:`、`feat:`、`docs:` 等前缀。
 - 完成后运行相关核心测试、WPF 检查及 Release 构建；报告实际通过项和未验证的硬件场景。仅改文档可按影响范围验证链接与内容；CI／打包修改必须实际验证相关流程。
 - 提交源码、测试及文档，不提交 `.packages`、`.cli`、`bin`、`obj`、发布包、实际心率数据或凭据。
